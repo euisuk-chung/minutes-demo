@@ -1,0 +1,7 @@
+requests/
+minutes/
+inbox/
+__pycache__/
+*.pyc
+watch.log
+.venv/

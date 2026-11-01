@@ -1,0 +1,14 @@
+# 이 폴더가 저장소 하나다(harness-minutes-demo). `uv run` 이 처음 불릴 때 여기에 .venv 를 만들고
+# 아래 둘을 넣는다 — 따로 설치 명령을 칠 일은 없다. 이 폴더의 코드는 설치하지 않고 그 자리에서 실행한다.
+[project]
+name = "harness-minutes-demo"
+version = "0.1.0"
+description = "회의록 자동화 라이브 시연"
+requires-python = ">=3.11"
+dependencies = [
+    "PyYAML>=6.0,<7",     # 흐름도·정책(graph.yaml · policies.yaml)을 읽는다 — 차단 장치가 쓴다
+    "jsonschema>=4.0,<5", # 초안이 형식을 지켰는지 본다
+]
+
+[tool.uv]
+package = false

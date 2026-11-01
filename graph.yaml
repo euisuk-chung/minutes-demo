@@ -1,0 +1,58 @@
+# 회의록 자동화의 흐름도 — "허용된 경로" 의 전부다.
+#
+# 단계 이름은 업무 말 여섯 가운데 넷: 수집(collect) → 작성(draft) → 검수(review) → 전달(deliver).
+# 요청(request)은 흐름 밖의 scripts/request.sh 가 만들고, 이 회의록 흐름에는 승인(approve) 자리가 없다
+# — 담당자를 채우지 못한 회의록만 사람에게 간다(needs_human).
+#
+# 누가 하나(by)
+#   script   차단 장치 next_step.py 가 그 명령을 직접 실행한다. 모델을 부르지 않는다
+#   drafter  Claude 가 하위 에이전트 drafter 에게 맡긴다. 여기서만 모델이 일한다
+#
+# 다음에 어디로 갈지는 단계가 끝날 때 남기는 신호(숫자)가 정한다. 출력 글을 읽어 판단하지 않는다.
+#   0 됐다 / 1 검수가 거부 / 2 형식 위반 / 64 실행 환경 문제
+#
+# 키를 `on:` 이라고 쓰지 않는다 — YAML 에서 on 은 true 로 읽힌다. 그래서 next: 다.
+
+start: collect
+
+steps:
+  collect:
+    by: script
+    run: uv run python scripts/collect.py {id}
+    next:
+      0: draft
+      64: failed
+
+  draft:
+    by: drafter
+    # 작성을 맡길 때 Claude 에게 보일 안내. {id} 는 요청 id 로 바뀐다.
+    ask: "요청 {id} 의 회의록 초안을 쓰게 하세요. 읽을 것 requests/{id}/transcript.txt 와 requests/{id}/collected.json(참석자 명단·지난 할 일), 쓸 곳 requests/{id}/draft.json."
+    retry_hint: "녹취에 없는 담당자·기한은 지어내지 말고 빈 채로 두세요 — 그러면 사람에게 넘어가는 것이 맞는 결과입니다."
+    # 검수가 거부하면 여기로 되돌아온다. 세 번 작성해도 안 되면 사람에게.
+    max_visits: 3
+    when_exhausted: needs_human
+    next:
+      0: review
+
+  review:
+    by: script
+    run: uv run python review.py {id}
+    next:
+      0: deliver
+      1: draft
+      2: draft
+
+  deliver:
+    by: script
+    run: uv run python scripts/deliver.py {id}
+    next:
+      0: done
+      64: failed
+
+terminal:
+  - done
+  - needs_human
+  - failed
+
+# 되돌아가기가 끝없이 돌지 않게 전체 단계 수도 자른다.
+max_steps: 12
